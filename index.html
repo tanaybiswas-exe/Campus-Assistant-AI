@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIU Smart Campus Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <style>
+        /* ওএসএম রাউটিং টেক্সট বক্সটি ম্যাপের সৌন্দর্য নষ্ট করে, তাই হাইড করা হলো */
+        .leaflet-routing-container { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+
+    <div id="auth-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
+            
+            <div id="login-box">
+                <div class="text-center mb-6">
+                    <h2 class="text-3xl font-extrabold text-green-600 tracking-tight">DIU Smart Campus</h2>
+                    <p class="text-gray-400 text-sm mt-1">Institutional Student Login</p>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Student ID</label>
+                        <input id="login-id" type="text" placeholder="e.g., 221-15-1234" class="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Password</label>
+                        <input id="login-pass" type="password" placeholder="••••••••" class="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition text-sm">
+                    </div>
+                    <button onclick="submitLogin()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg transition">Sign In</button>
+                    <p class="text-center text-sm text-gray-500 mt-4">Don't have an account? <button onclick="toggleAuthBoxes(true)" class="text-green-600 font-bold hover:underline">Register Now</button></p>
+                </div>
+            </div>
+
+            <div id="register-box" class="hidden">
+                <div class="text-center mb-6">
+                    <h2 class="text-3xl font-extrabold text-blue-600 tracking-tight">Create Account</h2>
+                    <p class="text-gray-400 text-sm mt-1">Join DIU Smart Portal</p>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Full Name</label>
+                        <input id="reg-name" type="text" placeholder="Sajid Ahmed" class="w-full px-4 py-2 border rounded-xl outline-none text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Student ID</label>
+                        <input id="reg-id" type="text" placeholder="221-15-1234" class="w-full px-4 py-2 border rounded-xl outline-none text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">DIU Email</label>
+                        <input id="reg-email" type="email" placeholder="student@diu.edu.bd" class="w-full px-4 py-2 border rounded-xl outline-none text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Password</label>
+                        <input id="reg-pass" type="password" placeholder="••••••••" class="w-full px-4 py-2 border rounded-xl outline-none text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button onclick="submitRegistration()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl shadow-md transition mt-2">Register Now</button>
+                    <p class="text-center text-sm text-gray-500 mt-3">Already have an account? <button onclick="toggleAuthBoxes(false)" class="text-blue-600 font-bold hover:underline">Login</button></p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="main-dashboard" class="flex h-screen overflow-hidden hidden">
+        
+        <aside class="w-64 bg-slate-900 text-white flex flex-col justify-between p-4">
+            <div>
+                <div class="py-4 border-b border-slate-800 text-center">
+                    <span class="text-xl font-black text-green-400 tracking-wide block">DIU SMART HUB</span>
+                </div>
+                <nav class="mt-6 space-y-2" id="sidebar-menu">
+                    <button onclick="switchTab('bot-tab')" id="btn-bot-tab" class="w-full text-left px-4 py-3 rounded-xl font-semibold flex items-center space-x-3 transition bg-green-600 text-white tab-btn">
+                        <span>🤖 Campus AI & Map</span>
+                    </button>
+                    <button onclick="switchTab('gpa-tab')" id="btn-gpa-tab" class="w-full text-left px-4 py-3 rounded-xl font-semibold flex items-center space-x-3 transition text-gray-400 hover:bg-slate-800 hover:text-white tab-btn">
+                        <span>📊 CGPA Calculator</span>
+                    </button>
+                    <button onclick="switchTab('profile-tab')" id="btn-profile-tab" class="w-full text-left px-4 py-3 rounded-xl font-semibold flex items-center space-x-3 transition text-gray-400 hover:bg-slate-800 hover:text-white tab-btn">
+                        <span>⚙️ Edit Profile</span>
+                    </button>
+                </nav>
+            </div>
+            
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <span class="text-[10px] uppercase font-bold tracking-widest text-green-400 block mb-1">Active Session</span>
+                <p id="sb-profile-name" class="font-bold text-sm truncate">Loading...</p>
+                <p id="sb-profile-id" class="text-xs text-gray-400 font-mono">Loading...</p>
+                <button onclick="logout()" class="w-full mt-3 bg-red-900/40 hover:bg-red-900 text-red-200 text-xs py-1.5 rounded-lg border border-red-700 transition">Logout</button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col bg-gray-50 overflow-hidden">
+            
+            <div id="bot-tab" class="content-section flex flex-1 h-full overflow-hidden p-6 gap-6">
+                <div class="w-2/5 bg-white rounded-2xl shadow-sm border flex flex-col h-full overflow-hidden">
+                    <div class="p-4 border-b bg-gray-50 font-bold text-gray-700 flex justify-between items-center">
+                        <span>DIU AI Campus Assistant</span>
+                        <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    </div>
+                    <div id="chat-logs" class="flex-1 p-4 overflow-y-auto space-y-4 text-sm bg-gray-50/50">
+                        <div class="flex justify-start">
+                            <div class="bg-white border text-gray-800 rounded-2xl rounded-tl-none p-3 max-w-[85%] shadow-sm">
+                                Welcome! Ask me to find locations on the map. For example: <b>"Where is Innovation Tower?"</b><br><br>
+                                <span class="text-xs text-blue-600">💡 I will automatically calculate the route and walking time from your live location!</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-gray-50 border-t flex gap-2">
+                        <input id="chat-input" type="text" placeholder="Ask something..." onkeydown="if(event.key === 'Enter') sendChatMessage()" class="flex-1 border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500 bg-white">
+                        <button onclick="sendChatMessage()" class="bg-green-600 hover:bg-green-700 text-white font-bold px-4 rounded-xl text-sm transition">Send</button>
+                    </div>
+                </div>
+
+                <div class="w-3/5 bg-white rounded-2xl shadow-sm border flex flex-col h-full overflow-hidden">
+                    <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+                        <div>
+                            <span class="text-xs uppercase font-extrabold text-green-600 tracking-wider block">Real-Time Route Tracker</span>
+                            <h3 id="map-title" class="font-bold text-gray-800 text-base">Fetching your location...</h3>
+                        </div>
+                        <div id="eta-box" class="hidden bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl text-center">
+                            <span class="text-[10px] font-bold text-blue-500 uppercase block">Estimated Walk</span>
+                            <span id="eta-time" class="text-sm font-black text-blue-700">-- mins</span>
+                        </div>
+                    </div>
+                    <div id="map-viewport" class="flex-1 bg-gray-100 z-10" style="height: 100%;"></div>
+                </div>
+            </div>
+
+            <div id="gpa-tab" class="content-section flex-1 overflow-y-auto p-6 hidden">
+                <div class="max-w-2xl mx-auto space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border flex items-center justify-between">
+                        <div>
+                            <h2 class="text-2xl font-black text-gray-800">DIU Semester GPA Form</h2>
+                            <p class="text-gray-400 text-sm">4 Theory Subjects (3 Credits) + 1 Lab (1.5 Credits)</p>
+                        </div>
+                        <div class="bg-green-50 border border-green-200 text-center px-6 py-3 rounded-xl">
+                            <span class="text-xs font-bold text-green-700 block">GPA</span>
+                            <span id="gpa-display" class="text-4xl font-black text-green-600">4.00</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
+                        <div class="space-y-3 divide-y divide-gray-100">
+                            <div class="flex items-center justify-between pt-2"><span>Theory Subject 1 (3 Credits)</span><select onchange="calculateSemesterGPA()" class="gpa-select border p-2 rounded-xl text-sm font-bold bg-gray-50"><option value="4.00">A+ (4.00)</option><option value="3.75">A (3.75)</option><option value="3.50">A- (3.50)</option><option value="0.00">F (0.00)</option></select></div>
+                            <div class="flex items-center justify-between pt-3"><span>Theory Subject 2 (3 Credits)</span><select onchange="calculateSemesterGPA()" class="gpa-select border p-2 rounded-xl text-sm font-bold bg-gray-50"><option value="4.00">A+ (4.00)</option><option value="3.75">A (3.75)</option><option value="3.50">A- (3.50)</option><option value="0.00">F (0.00)</option></select></div>
+                            <div class="flex items-center justify-between pt-3"><span>Theory Subject 3 (3 Credits)</span><select onchange="calculateSemesterGPA()" class="gpa-select border p-2 rounded-xl text-sm font-bold bg-gray-50"><option value="4.00">A+ (4.00)</option><option value="3.75">A (3.75)</option><option value="3.50">A- (3.50)</option><option value="0.00">F (0.00)</option></select></div>
+                            <div class="flex items-center justify-between pt-3"><span>Theory Subject 4 (3 Credits)</span><select onchange="calculateSemesterGPA()" class="gpa-select border p-2 rounded-xl text-sm font-bold bg-gray-50"><option value="4.00">A+ (4.00)</option><option value="3.75">A (3.75)</option><option value="3.50">A- (3.50)</option><option value="0.00">F (0.00)</option></select></div>
+                            <div class="flex items-center justify-between pt-3"><span class="font-bold text-purple-600">Sessional Lab Subject (1.5 Credits)</span><select id="gpa-lab-select" onchange="calculateSemesterGPA()" class="border p-2 rounded-xl text-sm font-bold bg-gray-50"><option value="4.00">A+ (4.00)</option><option value="3.75">A (3.75)</option><option value="3.50">A- (3.50)</option><option value="0.00">F (0.00)</option></select></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="profile-tab" class="content-section flex-1 overflow-y-auto p-6 hidden">
+                <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-sm border space-y-4">
+                    <h2 class="text-xl font-bold text-gray-800 border-b pb-2">⚙️ Student Profile Settings</h2>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase">Student ID (Cannot Change)</label>
+                            <input id="edit-id" type="text" disabled class="w-full bg-gray-100 px-4 py-2 border rounded-xl text-sm text-gray-500 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 uppercase">Full Name</label>
+                            <input id="edit-name" type="text" class="w-full px-4 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 uppercase">Department</label>
+                            <input id="edit-dept" type="text" class="w-full px-4 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 uppercase">Campus Location</label>
+                            <input id="edit-campus" type="text" class="w-full px-4 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <button onclick="submitProfileUpdate()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl shadow transition">Save Settings</button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://127.0.0.1:5000';
+        let currentUser = null;
+        let map = null;
+        let routingControl = null;
+        let currentMarkers = []; // আগের পুরানো মার্কার রিমুভ করার ট্র্যাকলিস্ট
+        
+        // ডিফল্ট ড্যাফোডিল ক্যাম্পাস লোকেশন সেন্টারিং
+        let userLat = 23.9184;
+        let userLng = 90.2562;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('main-dashboard').classList.add('hidden');
+            getUserLiveLocation(); 
+        });
+
+        function getUserLiveLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLat = position.coords.latitude;
+                        userLng = position.coords.longitude;
+                        console.log("User GPS Location Captured:", userLat, userLng);
+                    },
+                    (error) => {
+                        console.warn("Using default campus core coordinates.");
+                    }
+                );
+            }
+        }
+
+        function toggleAuthBoxes(showRegister) {
+            if (showRegister) {
+                document.getElementById('login-box').classList.add('hidden');
+                document.getElementById('register-box').classList.remove('hidden');
+            } else {
+                document.getElementById('register-box').classList.add('hidden');
+                document.getElementById('login-box').classList.remove('hidden');
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.content-section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-green-600', 'text-white');
+                btn.classList.add('text-gray-400', 'hover:bg-slate-800', 'hover:text-white');
+            });
+
+            const activeBtn = document.getElementById(`btn-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-gray-400', 'hover:bg-slate-800', 'hover:text-white');
+                activeBtn.classList.add('bg-green-600', 'text-white');
+            }
+
+            if (tabId === 'bot-tab' && map) {
+                setTimeout(() => { map.invalidateSize(); }, 200);
+            }
+        }
+
+        async function submitRegistration() {
+            const name = document.getElementById('reg-name').value.trim();
+            const student_id = document.getElementById('reg-id').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const password = document.getElementById('reg-pass').value.trim();
+
+            if(!name || !student_id || !email || !password) {
+                alert("Fields cannot be left empty.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${BASE_URL}/api/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, student_id, email, password })
+                });
+                const data = await res.json();
+                alert(data.message);
+                if(data.success) toggleAuthBoxes(false);
+            } catch (err) {
+                alert("Backend offline or connection broken.");
+            }
+        }
+
+        async function submitLogin() {
+            const student_id = document.getElementById('login-id').value.trim();
+            const password = document.getElementById('login-pass').value.trim();
+
+            if(!student_id || !password) {
+                alert("Please type your ID and Password.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${BASE_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ student_id, password })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    currentUser = data.user;
+                    updateUIWithUserData();
+                    
+                    document.getElementById('auth-screen').classList.add('hidden');
+                    document.getElementById('main-dashboard').classList.remove('hidden');
+                    
+                    initMap(userLat, userLng, "Your Location / Campus Center");
+                    switchTab('bot-tab');
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                alert("System authentication bridge down.");
+            }
+        }
+
+        function updateUIWithUserData() {
+            if(!currentUser) return;
+            document.getElementById('sb-profile-name').innerText = currentUser.name;
+            document.getElementById('sb-profile-id').innerText = currentUser.student_id;
+            document.getElementById('edit-id').value = currentUser.student_id;
+            document.getElementById('edit-name').value = currentUser.name;
+            document.getElementById('edit-dept').value = currentUser.dept;
+            document.getElementById('edit-campus').value = currentUser.campus;
+        }
+
+        async function submitProfileUpdate() {
+            const name = document.getElementById('edit-name').value.trim();
+            const dept = document.getElementById('edit-dept').value.trim();
+            const campus = document.getElementById('edit-campus').value.trim();
+
+            try {
+                const res = await fetch(`${BASE_URL}/api/profile/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ student_id: currentUser.student_id, name, dept, campus })
+                });
+                const data = await res.json();
+                alert(data.message);
+                if(data.success) {
+                    currentUser = data.user;
+                    updateUIWithUserData();
+                }
+            } catch (err) {
+                alert("Profile modification failed.");
+            }
+        }
+
+        function initMap(lat, lng, title) {
+            if (map !== null) return; 
+            document.getElementById('map-title').innerText = title;
+            map = L.map('map-viewport').setView([lat, lng], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap core'
+            }).addTo(map);
+
+            // স্টার্টার পিন অ্যাড করা
+            const userMarker = L.marker([lat, lng]).addTo(map).bindPopup(`<b>${title}</b>`).openPopup();
+            currentMarkers.push(userMarker);
+        }
+
+        // গন্তব্যে রাউটিং, ছবিসহ সুন্দর কাস্টম পপআপ এবং ওয়াকিং টাইম প্রজেকশন
+        function drawRouteToDestination(destLat, destLng, destName, destImg) {
+            if (!map) return;
+
+            document.getElementById('map-title').innerText = `Path to: ${destName}`;
+
+            // পুরানো রুট মুছে ক্লিন করা
+            if (routingControl !== null) {
+                map.removeControl(routingControl);
+            }
+            
+            // আগের ডেস্টিনেশন মার্কারগুলো ক্লিন করা (ইউজার মার্কার বাদে)
+            currentMarkers.forEach((m, idx) => {
+                if(idx > 0) map.removeLayer(m);
+            });
+            currentMarkers = [currentMarkers[0]]; 
+
+            // লিফলেট রাউটিং মডিউল সেটআপ
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(userLat, userLng),
+                    L.latLng(destLat, destLng)
+                ],
+                routeWhileDragging: false,
+                addWaypoints: false,
+                lineOptions: {
+                    styles: [{ color: '#10b981', weight: 6, opacity: 0.85 }] // উজ্জ্বল এমারেল্ড গ্রিন রুট ট্র্যাক লাইন
+                }
+            }).addTo(map);
+
+            // ইমেজ সহ লাক্সারি পপআপ কন্টেন্ট ডিজাইন
+            const popupContent = `
+                <div class="w-52 font-sans p-1">
+                    <img src="${destImg}" class="w-full h-28 object-cover rounded-xl mb-2 shadow-md border" alt="${destName}">
+                    <b class="text-sm text-slate-800 block leading-tight mb-1">${destName}</b>
+                    <span class="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full inline-block border border-emerald-200">📍 Destination Reached</span>
+                </div>
+            `;
+            
+            const destMarker = L.marker([destLat, destLng]).addTo(map).bindPopup(popupContent);
+            currentMarkers.push(destMarker);
+            
+            // রুট খুঁজে পাওয়ার পর টাইমিং ও ডিসট্যান্স প্রজেক্ট করা
+            routingControl.on('routesfound', function(e) {
+                const routes = e.routes;
+                const summary = routes[0].summary;
+                const distanceInKm = (summary.totalDistance / 1000).toFixed(2);
+                
+                // ওএসএম মিটার ডেটা থেকে হাঁটার গড় সময় বের করা (১.২ মি/সেকেন্ড স্পিড ধরে)
+                const walkingTimeMinutes = Math.round((summary.totalDistance / 1.2) / 60); 
+
+                const etaBox = document.getElementById('eta-box');
+                const etaTimeText = document.getElementById('eta-time');
+                
+                etaTimeText.innerHTML = `${walkingTimeMinutes} Mins <span class="text-xs font-normal text-gray-500">(${distanceInKm} km)</span>`;
+                etaBox.classList.remove('hidden');
+                
+                // গন্তব্যের পপআপ স্বয়ংক্রিয়ভাবে ওপেন করা
+                setTimeout(() => {
+                    destMarker.openPopup();
+                }, 400);
+            });
+        }
+
+        async function sendChatMessage() {
+            const inputEl = document.getElementById('chat-input');
+            const text = inputEl.value.trim();
+            if(!text) return;
+
+            appendMessage(text, 'justify-end', 'bg-green-600 text-white rounded-tr-none');
+            inputEl.value = '';
+
+            try {
+                const res = await fetch(`${BASE_URL}/api/chatbot`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await res.json();
+                appendMessage(data.reply, 'justify-start', 'bg-white border text-gray-800 rounded-tl-none shadow-sm');
+
+                // যদি পাইথন ডাটাবেজ থেকে লোকেশন ও ইমেজ লিংকের রেসপন্স আসে
+                if(data.location) {
+                    drawRouteToDestination(data.location.lat, data.location.lng, data.location.name, data.location.img);
+                }
+            } catch (err) {
+                appendMessage("AI Core connection timeout.", 'justify-start', 'bg-red-50 text-red-700 border border-red-200 rounded-tl-none');
+            }
+        }
+
+        function appendMessage(text, alignmentClass, styleClass) {
+            const container = document.getElementById('chat-logs');
+            const msgNode = document.createElement('div');
+            msgNode.className = `flex ${alignmentClass}`;
+            
+            // বোল্ড টেক্সট ফরম্যাটিং সেভ করা
+            let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            msgNode.innerHTML = `<div class="rounded-2xl p-3 max-w-[85%] text-sm ${styleClass}"><p>${formattedText}</p></div>`;
+            
+            container.appendChild(msgNode);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function calculateSemesterGPA() {
+            const dropdowns = document.querySelectorAll('.gpa-select');
+            let totalPoints = 0;
+            dropdowns.forEach(select => { totalPoints += parseFloat(select.value) * 3.0; });
+            const labValue = parseFloat(document.getElementById('gpa-lab-select').value) || 0;
+            totalPoints += labValue * 1.5;
+            const totalCredits = (4 * 3.0) + 1.5;
+            document.getElementById('gpa-display').innerText = (totalPoints / totalCredits).toFixed(2);
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('main-dashboard').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
